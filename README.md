@@ -1,4 +1,4 @@
-# requested_wiki_articles
+# most_requested_wiki_articles_bot
 The goal is to list the most referenced articles in a wikipedia project that lack a article page.
 
 Your are going to need to install pywikibot and might need something like
