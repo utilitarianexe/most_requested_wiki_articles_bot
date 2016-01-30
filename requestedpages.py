@@ -26,6 +26,10 @@ def create_request_list(site, project_name, category_name, threshold, target_pag
         linkgen = page.linkedPages()
         for link in linkgen:
             if not link.exists():
+            	# if configured to only include articles, and link is to
+            	# a namespace other than an article, it does not add it to the list
+            	if config.article_namespace_only and link.namespace() != 0:
+            		continue
                 if link.title() in redlinks:
                     redlinks[link.title()] = redlinks[link.title()] + 1
                 else:
