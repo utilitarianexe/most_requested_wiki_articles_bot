@@ -4,8 +4,7 @@ import config
 from pywikibot import pagegenerators
 
 '''
-multiple links on a page only counted once?
-should we be more restrictive about what links should count
+might be useful to includde what page it came from
 set up to run automatically
 '''
 
@@ -18,23 +17,29 @@ def create_request_list(site, project_name, category_name, threshold, target_pag
     gen = pagegenerators.CategorizedPageGenerator(cat)
     redlinks = {}
     for i, page in enumerate(gen):
+        if page.title()[:5] == 'Talk:':
+            page = pywikibot.Page(site, page.title()[5:])
+        print(page.title())
         if config.max_catalog_pages is not None:
             if i > config.max_catalog_pages:
                 break
 
-        #article = page.toggleTalkPage()
         linkgen = page.linkedPages()
         for link in linkgen:
             if not link.exists():
-            	# if configured to only include articles, and link is to
-            	# a namespace other than an article, it does not add it to the list
-            	if config.article_namespace_only and link.namespace() != 0:
-            		continue
+                # if configured to only include articles, and link is to
+                # a namespace other than an article, it does not add it to the list
+                if config.article_namespace_only and link.namespace() != 0:
+                    continue
+
                 if link.title() in redlinks:
                     redlinks[link.title()] = redlinks[link.title()] + 1
                 else:
                     redlinks[link.title()] = 1
-    write_listed_links(site, redlinks, target_page, project_name, threshold)
+    if config.actually_edit:
+        write_listed_links(site, redlinks, target_page, project_name, threshold)
+    else:
+        print(redlinks)
 
 
 def write_listed_links(site, redlinks, target_page, project_name, threshold):
@@ -115,11 +120,8 @@ def get_projects(site):
             projects.append(line)
     return projects
 
-
-def main():
-    site = pywikibot.Site()
+def create_request_lists(site):
     projects = get_projects(site)
-
     for project in projects:
         project_name = project[0] #first item on a line is the name of the wikiproject
         category_name = project[1] #second item on a line is the category name
@@ -133,7 +135,26 @@ def main():
         create_request_list(site, project_name, category_name, threshold, target_page)
 
 
+def notifiy_error(exception, user, site):
+    notify_page_name = 'User_talk:' + user
+    talk_page = pywikibot.Page(site, notify_page_name)
+    talk_page_text = talk_page.get()
+    error_text = '{{ping|' + user + '}} ' + str(exception) + ' ~~~~'
+    seperator = '\n\n' + '== bot errors ==' + '\n\n '
+    new_text = talk_page_text + seperator + error_text
+    summary = 'bot error happened'
+    talk_page.put(new_text, summary=summary, minorEdit=False)
+
+
+def main():
+    site = pywikibot.Site()
+    try:
+        create_request_lists(site)
+    except Exception as exception:
+        for user in config.users_to_notify_on_error:
+            notifiy_error(exception, user, site)
+
+
 if __name__ == '__main__':
     main()
-    # site = pywikibot.Site()
-    # print(get_projects(site))
+
